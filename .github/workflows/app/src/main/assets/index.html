@@ -1,0 +1,589 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>RTO Report Generator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#1C2A38">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: an operations console. Navy header band, a grid of report tiles tagged with their short codes,
+   a form sheet that ends in a monospaced message slip ready for Viber, and a message log. */
+:root {
+  --bg: #EDF0F2;
+  --surface: #FFFFFF;
+  --sunken: #F5F7F8;
+  --ink: #16202B;
+  --muted: #5B6875;
+  --line: #D3D9DF;
+  --accent: #A85A00;
+  --accent-soft: #FBEEDD;
+  --accent-ink: #FFFFFF;
+  --band: #1C2A38;
+  --band-ink: #E9EEF2;
+  --band-muted: #9FB0BF;
+  --ok: #2F7D4F;
+  --danger: #B3261E;
+  --display: "IBM Plex Sans Condensed", "Roboto Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", Roboto, "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", "Roboto Mono", Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10161D; --surface: #18212B; --sunken: #131B23; --ink: #E4E9EE; --muted: #93A1AE;
+    --line: #2A3642; --accent: #F0A23A; --accent-soft: #3A2A14; --accent-ink: #1A1205;
+    --band: #0B1015; --band-ink: #E4E9EE; --band-muted: #7F8E9C; --ok: #5CC48A; --danger: #FF8A80;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10161D; --surface: #18212B; --sunken: #131B23; --ink: #E4E9EE; --muted: #93A1AE;
+  --line: #2A3642; --accent: #F0A23A; --accent-soft: #3A2A14; --accent-ink: #1A1205;
+  --band: #0B1015; --band-ink: #E4E9EE; --band-muted: #7F8E9C; --ok: #5CC48A; --danger: #FF8A80;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+#createBtn { flex: 2 1 180px; }
+html, body { min-height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--band); }
+.wrap { max-width: 720px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* Header band */
+.band { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--band); color: var(--band-ink); }
+.band .wrap { display: flex; align-items: center; gap: 10px; min-height: 56px; padding-block: 8px; }
+.band h1 { flex: 1; min-width: 0; margin: 0; font-family: var(--display); font-weight: 600; font-size: 19px; letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.band h1 small { display: block; font-family: var(--body); font-weight: 500; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--band-muted); }
+.iconbtn { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; border: 1px solid color-mix(in srgb, var(--band-ink) 25%, transparent); border-radius: 999px; background: transparent; color: var(--band-ink); font: 600 14px var(--body); cursor: pointer; }
+.iconbtn svg { width: 18px; height: 18px; }
+.iconbtn:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font: 600 12px/20px var(--body); text-align: center; font-variant-numeric: tabular-nums; }
+
+main { padding-block: 18px 40px; }
+.lede { margin: 0 0 16px; color: var(--muted); max-width: 60ch; }
+
+/* Home tiles */
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tile { display: flex; flex-direction: column; gap: 6px; min-height: 96px; padding: 14px; text-align: left; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r); cursor: pointer; font: inherit; }
+.tile:active { transform: scale(.985); }
+.tile:hover { border-color: var(--accent); }
+.code { align-self: flex-start; padding: 2px 7px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font: 500 11px var(--mono); letter-spacing: .06em; }
+.tile b { font-family: var(--display); font-weight: 600; font-size: 17px; line-height: 1.15; }
+.tile span.sub { color: var(--muted); font-size: 12.5px; }
+.foot { margin-top: 22px; color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+
+/* Form */
+.formhead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.formhead h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 24px; text-wrap: balance; }
+.sheet { display: grid; gap: 14px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+.field { display: grid; gap: 5px; min-width: 0; }
+.field label { font-size: 12px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.chip { margin-left: auto; padding: 2px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--sunken); color: var(--ink); font: 500 12px var(--body); letter-spacing: 0; text-transform: none; cursor: pointer; }
+input, select, textarea { width: 100%; min-width: 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--sunken); color: var(--ink); font: 16px var(--body); }
+select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 34px; }
+textarea { resize: vertical; min-height: 64px; }
+.runs { display: flex; flex-wrap: wrap; gap: 6px; }
+.runs button { flex: 1 1 0; min-width: 56px; padding: 10px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--sunken); color: var(--ink); font: 500 14px var(--mono); cursor: pointer; }
+.runs button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.divider { height: 1px; background: var(--line); margin: 2px 0; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 600 15px var(--body); cursor: pointer; }
+.btn svg { width: 18px; height: 18px; flex: none; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+.btn.danger { color: var(--danger); }
+.btn:disabled { opacity: .5; cursor: default; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.row .btn { flex: 1 1 120px; }
+
+.slip { display: grid; gap: 10px; margin-top: 16px; }
+.slip h3 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.slip h3 span { color: var(--muted); font-family: var(--body); font-weight: 400; font-size: 13px; }
+#msg { min-height: 220px; font: 14px/1.55 var(--mono); background: var(--surface); border-style: dashed; border-width: 1.5px; white-space: pre-wrap; }
+
+/* Log */
+.loghead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.loghead h2 { flex: 1; margin: 0; font-family: var(--display); font-weight: 700; font-size: 24px; }
+.entries { display: grid; gap: 10px; }
+.entry { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.entry summary { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 12px 14px; cursor: pointer; }
+.entry summary::-webkit-details-marker { display: none; }
+.entry .rep { font-family: var(--display); font-weight: 600; font-size: 16px; }
+.entry .op { font: 500 12px var(--mono); color: var(--accent); align-self: center; }
+.entry .when { grid-column: 1 / -1; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.entry pre { margin: 0; padding: 12px 14px; border-top: 1px dashed var(--line); background: var(--sunken); font: 13px/1.55 var(--mono); white-space: pre-wrap; word-break: break-word; }
+.entry .acts { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.entry .acts .btn { min-height: 38px; font-size: 14px; padding: 0 12px; }
+.confirm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--danger); font-size: 14px; }
+.empty { padding: 28px 18px; text-align: center; color: var(--muted); background: var(--surface); border: 1px dashed var(--line); border-radius: var(--r); }
+.empty b { display: block; color: var(--ink); font-family: var(--display); font-size: 17px; margin-bottom: 4px; }
+
+/* Toast */
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px); max-width: calc(100% - 32px); padding: 12px 16px; border-radius: 10px; background: var(--ink); color: var(--surface); font-weight: 500; box-shadow: 0 6px 24px rgb(0 0 0 / .25); opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; z-index: 20; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.warn { background: var(--danger); color: #fff; }
+@media (prefers-reduced-motion: reduce) { .toast, .tile { transition: none; } .tile:active { transform: none; } }
+@media (min-width: 560px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+</style>
+</head><body>
+
+<header class="band">
+  <div class="wrap">
+    <button class="iconbtn" id="backBtn" type="button" hidden aria-label="Back to reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <h1 id="hdr"><small>GRP E</small>RTO Report Generator Tool</h1>
+    <button class="iconbtn" id="logBtn" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+      Log <span class="count" id="logCount">0</span>
+    </button>
+  </div>
+</header>
+
+<main class="wrap" id="viewHome">
+  <p class="lede">Pick a report, fill in the fields, then tap <b>Create message</b>. Copy or share it to Viber, and save it to the message log.</p>
+  <div class="tiles" id="tiles"></div>
+  <div class="foot">Message log · export to Excel from the Log screen</div>
+</main>
+
+<main class="wrap" id="viewForm" hidden>
+  <div class="formhead"><span class="code" id="fCode"></span><h2 id="fTitle"></h2></div>
+  <form class="sheet" id="theForm" autocomplete="off">
+    <div id="fields" style="display:grid;gap:14px"></div>
+    <div class="divider"></div>
+    <div class="field">
+      <label for="op">Created by</label>
+      <select id="op" name="op"></select>
+    </div>
+    <div class="row">
+      <button class="btn primary" type="submit" id="createBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
+        Create message
+      </button>
+      <button class="btn ghost" type="button" id="clearBtn">Clear fields</button>
+    </div>
+  </form>
+  <section class="slip" aria-labelledby="msgLbl">
+    <h3 id="msgLbl">Message <span>copy &amp; paste to Viber · you can edit it here</span></h3>
+    <textarea id="msg" spellcheck="false" placeholder="Fill in the fields above, then tap Create message."></textarea>
+    <div class="row">
+      <button class="btn" type="button" id="copyBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1"/></svg>
+        Copy message
+      </button>
+      <button class="btn" type="button" id="shareBtn" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
+        Share
+      </button>
+      <button class="btn primary" type="button" id="saveBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+        Save message
+      </button>
+    </div>
+  </section>
+</main>
+
+<main class="wrap" id="viewLog" hidden>
+  <div class="loghead">
+    <h2>Message log</h2>
+    <button class="btn primary" type="button" id="exportBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      Export to Excel
+    </button>
+    <button class="btn" type="button" id="copyTableBtn">Copy as table</button>
+  </div>
+  <div class="entries" id="entries"></div>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Data ported from the VBA forms ---------- */
+  var OPERATORS = ["JAMN","GLS","JPL","GGR","TJFC","KJPC","RBC","MALS","GPTA","JMLA","MJGP","VJGB","AYBL","GJAS","AATV"];
+  var RUNS = ["RTD","HAP","DAP","WAP"];
+  var REGIONS3 = ["Luzon Region","Visayas Region","Mindanao Region"];
+  var REGIONS6 = REGIONS3.concat(["Luzon and Visayas Region","Luzon and Mindanao Region","Visayas and Mindanao Region"]);
+
+  // f(label, opts): label = text used in the message ("Label: value").
+  // opts.form = different on-screen label, opts.options = dropdown, opts.runs = RTD/HAP/DAP/WAP buttons,
+  // opts.date = "Today" shortcut, opts.long = multi-line box, opts.suggest = typed field with suggestions.
+  function f(label, opts) { opts = opts || {}; opts.label = label; return opts; }
+
+  var REPORTS = [
+    { id: "CLT", button: "Contingency List", title: "Contingency List Update", header: "Contingency List Update", fields: [
+      f("Effective"), f("Update", { options: ["Addition","Removal"] }), f("Market Run", { runs: true }),
+      f("Equipment Involved"), f("Outage Related"), f("Outage Date", { date: true }), f("Actual Online"),
+      f("Other Remarks", { long: true }) ] },
+    { id: "HVDC", button: "HVDC Limit", title: "HVDC Update", header: "HVDC Update", fields: [
+      f("Event", { options: ["Luzon-Visayas Limit Adjustment","Visayas-Mindanao Limit Adjustment"] }),
+      f("Parameter", { options: ["HVDC Forward Limit","HVDC Reverse Limit"] }),
+      f("Previous Limit"), f("New Limit"), f("Date", { date: true }), f("Effective"), f("Other Remarks", { long: true }) ] },
+    { id: "MI", button: "Market Intervention", title: "Market Intervention Notice", header: "Market Intervention Notice", fields: [
+      f("Event", { options: ["SO Initiated","MO Initiated","Lifting of Market Intervention"], suffix: " Market Intervention" }),
+      f("Region", { options: REGIONS6 }), f("Date", { date: true }), f("Intervals"), f("Cause", { long: true }),
+      f("Market Impact", { long: true }), f("Actions Taken", { long: true }), f("Other Remarks", { long: true }) ] },
+    { id: "RR", button: "Reserve Requirement", title: "Reserve Requirement Notice", header: "Reserve Requirement Update", fields: [
+      f("Region", { options: REGIONS6 }),
+      f("Parameter", { options: ["Delayed Contingency Raise","Fast Contingency Raise","Regulation Raise","Regulation Lower",
+        "(ALL) Delayed Contingency Raise, Fast Contingency Raise, Regulation Raise, Regulation Lower"] }),
+      f("Required Entry", { options: ["For today","For tomorrow"] }), f("Date", { date: true }), f("Status"),
+      f("Other Remarks", { long: true }) ] },
+    { id: "NS", button: "Non-Scheduling", title: "Non-Scheduling Notice", header: "Non-Scheduling Notice", fields: [
+      f("Market Run", { runs: true }), f("Region", { options: REGIONS3 }), f("Resource Involved"), f("Date", { date: true }),
+      f("Interval(s) Affected"), f("Findings", { long: true }), f("Resolution", { long: true }), f("Other Remarks", { long: true }) ] },
+    { id: "LC", button: "Load Curtailment", title: "Load Curtailment Notice", header: "Load Curtailment Notice", fields: [
+      f("Market Run", { runs: true }), f("Region", { options: REGIONS3 }),
+      f("Event", { options: ["Load Curtailment","Intermittent Load Curtailment"] }), f("Magnitude"), f("Date", { date: true }),
+      f("Interval(s) Affected"), f("Findings", { long: true }), f("Market Impact", { suggest: ["Possible PEN/Market Re-run"] }),
+      f("Status") ] },
+    { id: "CR", button: "Congestion Report", title: "Congestion Report", header: "Congestion Notice", fields: [
+      f("Event", { options: ["Contingency Case","Base Case"] }), f("Element"), f("Market Run", { runs: true }),
+      f("Equipment Involved"), f("Date", { date: true }), f("Interval(s)", { form: "Interval(s) Affected" }),
+      f("Findings", { long: true }), f("Resolution", { long: true }) ] },
+    { id: "SCT", button: "Security Limit", title: "Security Limit Notice", header: "Security Limit Notice", fields: [
+      f("Event"), f("Parameter", { options: ["Transmission Corridor Limit"] }), f("Previous Limit"), f("New Limit"),
+      f("Date", { date: true }), f("Effective"), f("Other Remarks", { long: true }) ] },
+    { id: "MRN", button: "Market Run Failure", title: "Market Run Notice", header: "Market Run Notice", fields: [
+      f("Market Run", { runs: true }), f("Event", { options: ["Market Run TIMEDOUT","Market Run FAILURE"] }), f("Reason"),
+      f("Date", { date: true }), f("Findings", { long: true }), f("Market Impact", { long: true }),
+      f("Resolution", { long: true }), f("Other Remarks", { long: true }) ] },
+    { id: "OCT", button: "Other Concerns", title: "Other Concerns", header: "Other related concerns", fields: [
+      f("Trader/Affiliation"), f("Concern", { long: true }), f("Information", { long: true }), f("Date", { date: true }),
+      f("Status"), f("Other Remarks", { long: true }) ] }
+  ];
+
+  /* ---------- Message building (same as cmbCM_Click) ---------- */
+  function buildMessage(rep, values) {
+    var lines = [rep.header, ""];
+    rep.fields.forEach(function (fd, i) {
+      var v = values[i] == null ? "" : String(values[i]);
+      if (fd.suffix && v && !v.endsWith(fd.suffix.trim())) v += fd.suffix;
+      lines.push(fd.label + ": " + v);
+    });
+    return lines.join("\n");
+  }
+
+  /* ---------- Storage (phone keeps it; falls back to memory) ---------- */
+  var mem = {};
+  function load(key, dflt) {
+    try { var s = localStorage.getItem(key); if (s != null) return JSON.parse(s); } catch (e) {}
+    return key in mem ? mem[key] : dflt;
+  }
+  function store(key, val) {
+    mem[key] = val;
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+  }
+  var LOG_KEY = "rto.messageLog.v1";
+  var log = load(LOG_KEY, []);
+
+  /* ---------- Helpers ---------- */
+  var $ = function (id) { return document.getElementById(id); };
+  var MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  function p2(n) { return (n < 10 ? "0" : "") + n; }
+  function fmtDate(d) { return p2(d.getDate()) + "-" + MON[d.getMonth()] + "-" + d.getFullYear(); }
+  function fmtTime(d) { return p2(d.getHours()) + ":" + p2(d.getMinutes()) + ":" + p2(d.getSeconds()); }
+  function shortDate(d) { return p2(d.getMonth() + 1) + "/" + p2(d.getDate()) + "/" + String(d.getFullYear()).slice(2); }
+  function stamp(d) { return d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + "_" + p2(d.getHours()) + p2(d.getMinutes()) + p2(d.getSeconds()); }
+  function el(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === "text") n.textContent = attrs[k];
+      else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), attrs[k]);
+      else n.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function (c) { if (c) n.appendChild(c); });
+    return n;
+  }
+  var toastTimer;
+  function toast(text, warn) {
+    var t = $("toast");
+    t.textContent = text;
+    t.className = "toast show" + (warn ? " warn" : "");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.className = "toast" + (warn ? " warn" : ""); }, 2600);
+  }
+  var AB = window.AndroidBridge || null;
+  var embedded = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
+
+  /* ---------- Views ---------- */
+  var view = "home", current = null;
+  function show(v) {
+    view = v;
+    $("viewHome").hidden = v !== "home";
+    $("viewForm").hidden = v !== "form";
+    $("viewLog").hidden = v !== "log";
+    $("backBtn").hidden = v === "home";
+    $("logBtn").hidden = v === "log";
+    var h = $("hdr");
+    h.innerHTML = "";
+    h.appendChild(el("small", { text: v === "home" ? "GRP E" : v === "log" ? "Message_Log" : current.id + " template" }));
+    h.appendChild(document.createTextNode(v === "home" ? "RTO Report Generator Tool" : v === "log" ? "Message log" : current.button));
+    window.scrollTo(0, 0);
+  }
+  window.appBack = function () { if (view !== "home") { show("home"); return true; } return false; };
+
+  /* Home tiles */
+  REPORTS.forEach(function (r) {
+    $("tiles").appendChild(el("button", { class: "tile", type: "button", onclick: function () { openForm(r); } }, [
+      el("span", { class: "code", text: r.id }), el("b", { text: r.button }), el("span", { class: "sub", text: r.header })
+    ]));
+  });
+
+  /* Operators */
+  $("op").appendChild(el("option", { value: "", text: "Select operator" }));
+  OPERATORS.forEach(function (o) { $("op").appendChild(el("option", { value: o, text: o })); });
+  $("op").value = load("rto.operator", "");
+  $("op").addEventListener("change", function () { store("rto.operator", $("op").value); });
+
+  /* Drafts per report so switching screens keeps what you typed */
+  var drafts = load("rto.drafts.v1", {});
+  function readValues() {
+    return current.fields.map(function (fd, i) {
+      var n = $("fld" + i);
+      return n ? n.value : "";
+    });
+  }
+  function saveDraft() { drafts[current.id] = { values: readValues(), msg: $("msg").value }; store("rto.drafts.v1", drafts); }
+
+  function openForm(rep) {
+    current = rep;
+    $("fCode").textContent = rep.id;
+    $("fTitle").textContent = rep.title;
+    var box = $("fields");
+    box.innerHTML = "";
+    var d = drafts[rep.id] || { values: [], msg: "" };
+    rep.fields.forEach(function (fd, i) {
+      var id = "fld" + i, val = d.values[i] || "", input;
+      var lab = el("label", { for: id, text: fd.form || fd.label });
+      if (fd.options) {
+        input = el("select", { id: id });
+        input.appendChild(el("option", { value: "", text: "Select…" }));
+        fd.options.forEach(function (o) { input.appendChild(el("option", { value: o, text: o })); });
+        input.value = val;
+      } else if (fd.runs) {
+        input = el("input", { id: id, type: "hidden" });
+        input.value = val;
+        var grp = el("div", { class: "runs", role: "group", "aria-label": fd.label });
+        RUNS.forEach(function (r) {
+          var b = el("button", { type: "button", "aria-pressed": String(val === r), text: r, onclick: function () {
+            input.value = input.value === r ? "" : r;
+            Array.prototype.forEach.call(grp.children, function (c) { c.setAttribute("aria-pressed", String(c.textContent === input.value)); });
+            saveDraft();
+          } });
+          grp.appendChild(b);
+        });
+        lab = el("label", { text: fd.label });
+        box.appendChild(el("div", { class: "field" }, [lab, grp, input]));
+        return;
+      } else if (fd.long) {
+        input = el("textarea", { id: id, rows: "2" });
+        input.value = val;
+      } else {
+        input = el("input", { id: id, type: "text", enterkeyhint: "next" });
+        if (fd.suggest) {
+          var dl = el("datalist", { id: id + "dl" });
+          fd.suggest.forEach(function (s) { dl.appendChild(el("option", { value: s })); });
+          input.setAttribute("list", id + "dl");
+          box.appendChild(dl);
+        }
+        input.value = val;
+      }
+      if (fd.date) {
+        lab.appendChild(el("button", { class: "chip", type: "button", text: "Today", onclick: function () { input.value = shortDate(new Date()); saveDraft(); } }));
+      }
+      input.addEventListener("input", saveDraft);
+      input.addEventListener("change", saveDraft);
+      box.appendChild(el("div", { class: "field" }, [lab, input]));
+    });
+    $("msg").value = d.msg || "";
+    show("form");
+  }
+
+  $("theForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    $("msg").value = buildMessage(current, readValues());
+    saveDraft();
+    toast("Message created");
+  });
+  $("msg").addEventListener("input", saveDraft);
+  $("clearBtn").addEventListener("click", function () {
+    drafts[current.id] = { values: [], msg: "" };
+    store("rto.drafts.v1", drafts);
+    openForm(current);
+    toast("Fields cleared");
+  });
+
+  /* Copy (same as cmbCopy_Click) */
+  function copyText(text, okMsg) {
+    if (!text.trim()) { toast("There is no message to copy.", true); return; }
+    if (AB && AB.copyText) { AB.copyText(text); toast(okMsg); return; }
+    function fallback() {
+      var ta = el("textarea", { style: "position:fixed;opacity:0;top:0;left:0" });
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      var ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(ta);
+      if (ok) toast(okMsg); else { $("msg").select && view === "form" && $("msg").select(); toast("Couldn't copy. Text is selected, copy it manually.", true); }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { toast(okMsg); }, fallback);
+    } else fallback();
+  }
+  $("copyBtn").addEventListener("click", function () { copyText($("msg").value, "Message copied. Paste it in Viber."); });
+
+  /* Share straight to Viber (Android app) */
+  if ((AB && AB.shareText) || (!embedded && navigator.share)) $("shareBtn").hidden = false;
+  $("shareBtn").addEventListener("click", function () {
+    var t = $("msg").value;
+    if (!t.trim()) { toast("There is no message to share.", true); return; }
+    if (AB && AB.shareText) AB.shareText(t);
+    else navigator.share({ text: t }).catch(function () {});
+  });
+
+  /* Save (same checks as cmbSave_Click) */
+  $("saveBtn").addEventListener("click", function () {
+    var t = $("msg").value;
+    if (!t.trim()) { toast("There is no message to save.", true); $("msg").focus(); return; }
+    if (!$("op").value) { toast("Please select an operator.", true); $("op").focus(); return; }
+    var now = new Date();
+    log.push({ date: fmtDate(now), time: fmtTime(now), report: current.title, message: t, operator: $("op").value, ts: now.getTime() });
+    store(LOG_KEY, log);
+    renderCount();
+    toast("Message saved successfully.");
+  });
+
+  /* ---------- Log ---------- */
+  function renderCount() { $("logCount").textContent = String(log.length); }
+  function renderLog() {
+    var box = $("entries");
+    box.innerHTML = "";
+    $("exportBtn").disabled = !log.length;
+    $("copyTableBtn").disabled = !log.length;
+    $("copyTableBtn").hidden = !!AB;
+    if (!log.length) {
+      box.appendChild(el("div", { class: "empty" }, [
+        el("b", { text: "No saved messages yet" }),
+        document.createTextNode("Open a report, create a message and tap Save message. Each one is listed here with its date, time and operator.")
+      ]));
+      return;
+    }
+    log.slice().reverse().forEach(function (e) {
+      var idx = log.indexOf(e);
+      var acts = el("div", { class: "acts" });
+      function normalActs() {
+        acts.innerHTML = "";
+        acts.appendChild(el("button", { class: "btn", type: "button", text: "Copy", onclick: function () { copyText(e.message, "Message copied."); } }));
+        if (AB && AB.shareText) acts.appendChild(el("button", { class: "btn", type: "button", text: "Share", onclick: function () { AB.shareText(e.message); } }));
+        acts.appendChild(el("button", { class: "btn ghost danger", type: "button", text: "Delete", onclick: askDelete }));
+      }
+      function askDelete() {
+        acts.innerHTML = "";
+        acts.appendChild(el("div", { class: "confirm" }, [
+          el("span", { text: "Delete this entry?" }),
+          el("button", { class: "btn danger", type: "button", text: "Delete", onclick: function () {
+            log.splice(log.indexOf(e), 1); store(LOG_KEY, log); renderCount(); renderLog(); toast("Entry deleted");
+          } }),
+          el("button", { class: "btn ghost", type: "button", text: "Keep", onclick: normalActs })
+        ]));
+      }
+      normalActs();
+      box.appendChild(el("details", { class: "entry" }, [
+        el("summary", {}, [
+          el("span", { class: "rep", text: e.report }), el("span", { class: "op", text: e.operator }),
+          el("span", { class: "when", text: e.date + " · " + e.time })
+        ]),
+        el("pre", { text: e.message }), acts
+      ]));
+    });
+  }
+  $("logBtn").addEventListener("click", function () { renderLog(); show("log"); });
+  $("backBtn").addEventListener("click", function () { window.appBack(); });
+
+  $("copyTableBtn").addEventListener("click", function () {
+    var rows = [["Date","Time","Report","Message","Operator"]].concat(log.map(function (e) {
+      return [e.date, e.time, e.report, '"' + e.message.replace(/"/g, '""') + '"', e.operator];
+    }));
+    copyText(rows.map(function (r) { return r.join("\t"); }).join("\n"), "Log copied. Paste it into Excel.");
+  });
+
+  /* ---------- Export to .xlsx (same as ExportMessageLog) ---------- */
+  var crcT;
+  function crc32(b) {
+    if (!crcT) { crcT = []; for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; crcT[n] = c >>> 0; } }
+    var x = -1; for (var i = 0; i < b.length; i++) x = (x >>> 8) ^ crcT[(x ^ b[i]) & 255];
+    return (x ^ -1) >>> 0;
+  }
+  function zip(files) {
+    var enc = new TextEncoder(), parts = [], central = [], off = 0;
+    var now = new Date(), dt = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1),
+        dd = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+    files.forEach(function (fl) {
+      var name = enc.encode(fl.name), data = enc.encode(fl.data), crc = crc32(data);
+      var h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+      h.setUint16(10, dt, true); h.setUint16(12, dd, true); h.setUint32(14, crc, true);
+      h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
+      parts.push(new Uint8Array(h.buffer), name, data);
+      var c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+      c.setUint16(12, dt, true); c.setUint16(14, dd, true); c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true);
+      c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+      central.push(new Uint8Array(c.buffer), name);
+      off += 30 + name.length + data.length;
+    });
+    var cdSize = central.reduce(function (s, a) { return s + a.length; }, 0);
+    var e = new DataView(new ArrayBuffer(22));
+    e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
+    e.setUint32(12, cdSize, true); e.setUint32(16, off, true);
+    var all = parts.concat(central, [new Uint8Array(e.buffer)]);
+    var out = new Uint8Array(all.reduce(function (s, a) { return s + a.length; }, 0)), p = 0;
+    all.forEach(function (a) { out.set(a, p); p += a.length; });
+    return out;
+  }
+  function xesc(s) {
+    return String(s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function buildXlsx(rows) {
+    var cols = ["A","B","C","D","E"];
+    function cell(ref, v, s) { return '<c r="' + ref + '" t="inlineStr" s="' + s + '"><is><t xml:space="preserve">' + xesc(v) + "</t></is></c>"; }
+    var data = [["Date","Time","Report","Message","Operator"]].concat(rows.map(function (e) { return [e.date, e.time, e.report, e.message, e.operator]; }));
+    var sheetRows = data.map(function (r, i) {
+      return '<row r="' + (i + 1) + '">' + r.map(function (v, j) { return cell(cols[j] + (i + 1), v, i === 0 ? 1 : j === 3 ? 2 : 3); }).join("") + "</row>";
+    }).join("");
+    var X = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+    return zip([
+      { name: "[Content_Types].xml", data: X + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>' },
+      { name: "_rels/.rels", data: X + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
+      { name: "xl/workbook.xml", data: X + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Message_Log" sheetId="1" r:id="rId1"/></sheets></workbook>' },
+      { name: "xl/_rels/workbook.xml.rels", data: X + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
+      { name: "xl/styles.xml", data: X + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>' },
+      { name: "xl/worksheets/sheet1.xml", data: X + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="14" customWidth="1"/><col min="2" max="2" width="10" customWidth="1"/><col min="3" max="3" width="28" customWidth="1"/><col min="4" max="4" width="60" customWidth="1"/><col min="5" max="5" width="11" customWidth="1"/></cols><sheetData>' + sheetRows + "</sheetData></worksheet>" }
+    ]);
+  }
+  window.__rto = { REPORTS: REPORTS, buildMessage: buildMessage, buildXlsx: buildXlsx };
+
+  $("exportBtn").addEventListener("click", function () {
+    if (!log.length) return;
+    var bytes = buildXlsx(log), name = "Message_Log_" + stamp(new Date()) + ".xlsx";
+    var mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    if (AB && AB.saveFile) {
+      var bin = ""; for (var i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      var res = AB.saveFile(name, btoa(bin), mime);
+      toast(res || ("Saved to Downloads: " + name));
+      return;
+    }
+    if (embedded) { toast("Export to Excel works in the Android app. Here, use Copy as table and paste into Excel.", true); return; }
+    var a = el("a", { href: URL.createObjectURL(new Blob([bytes], { type: mime })), download: name });
+    document.body.appendChild(a); a.click(); a.remove();
+    toast("Message Log exported: " + name);
+  });
+
+  renderCount();
+  show("home");
+})();
+</script>
+</body></html>

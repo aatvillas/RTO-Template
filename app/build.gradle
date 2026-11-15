@@ -1,0 +1,55 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Build number from GitHub Actions (-Pvc=<run number>) so each new APK installs over the old one.
+def vc = (project.findProperty('vc') ?: '1').toString().toInteger()
+
+android {
+    namespace 'com.grpe.rtoreport'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.grpe.rtoreport'
+        minSdk 26
+        targetSdk 34
+        versionCode vc
+        versionName "1.0.${vc}"
+    }
+
+    signingConfigs {
+        // Fixed key kept in the repo so every build has the same signature
+        // and updates install without uninstalling first.
+        shared {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.shared
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.shared
+        }
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+    implementation 'androidx.core:core:1.13.1'
+}

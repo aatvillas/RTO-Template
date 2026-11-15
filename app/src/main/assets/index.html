@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f3d4c">
+<title>RTO Report Generator</title>
+<style>
+:root{
+  --ink:#10232b; --muted:#5b6f77; --line:#d8e2e5; --bg:#f3f6f7; --card:#fff;
+  --brand:#0f3d4c; --brand2:#16687e; --accent:#e8a33d; --ok:#1d7a4f; --bad:#b3261e;
+  --r:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+header{position:sticky;top:0;z-index:5;background:var(--brand);color:#fff;
+  padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;display:flex;align-items:center;gap:10px}
+header h1{font-size:17px;margin:0;font-weight:650;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{background:var(--accent);color:#2a1a00;font-weight:800;font-size:12px;padding:3px 7px;border-radius:6px;letter-spacing:.04em}
+.iconbtn{background:rgba(255,255,255,.12);border:0;color:#fff;border-radius:10px;height:38px;min-width:38px;padding:0 10px;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.iconbtn svg{width:20px;height:20px}
+main{max-width:640px;margin:0 auto;padding:14px 14px calc(env(safe-area-inset-bottom) + 110px)}
+.status{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px;margin:2px 2px 12px}
+.dot{width:8px;height:8px;border-radius:50%;background:#9aa9ae}
+.dot.on{background:var(--ok)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 12px;text-align:left;cursor:pointer;min-height:84px;display:flex;flex-direction:column;justify-content:space-between;gap:8px;box-shadow:0 1px 0 rgba(0,0,0,.03)}
+.tile:active{transform:scale(.98);background:#eef5f7}
+.tile b{font-size:15px;line-height:1.25}
+.tile span{font-size:12px;color:var(--muted)}
+.tile .ic{width:30px;height:30px;border-radius:9px;background:#e4f0f3;color:var(--brand2);display:grid;place-items:center;font-weight:800;font-size:12px}
+.section{margin:22px 2px 8px;font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+label.f{display:block;margin:0 0 12px}
+label.f>span{display:flex;justify-content:space-between;align-items:center;font-size:13.5px;font-weight:600;margin-bottom:5px;color:#26424c}
+input.t,select.t,textarea.t{width:100%;border:1px solid #c5d3d7;background:#fbfdfd;border-radius:10px;padding:11px 12px;outline:none;min-height:46px}
+textarea.t{min-height:70px;resize:vertical}
+input.t:focus,select.t:focus,textarea.t:focus{border-color:var(--brand2);box-shadow:0 0 0 3px rgba(22,104,126,.15);background:#fff}
+select.t{appearance:none;background-image:linear-gradient(45deg,transparent 50%,#5b6f77 50%),linear-gradient(135deg,#5b6f77 50%,transparent 50%);background-position:calc(100% - 18px) 20px,calc(100% - 13px) 20px;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}
+.other{margin-top:6px}
+.chip{border:1px solid #c5d3d7;background:#fff;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;color:var(--brand2);cursor:pointer}
+.msgbox{font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;min-height:230px;background:#f7faf9}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.hint{font-size:12.5px;color:var(--muted)}
+.warn{color:#8a5300}
+.actions{position:fixed;left:0;right:0;bottom:0;z-index:6;background:rgba(255,255,255,.97);border-top:1px solid var(--line);
+  padding:10px 14px calc(env(safe-area-inset-bottom) + 10px);display:flex;gap:8px;justify-content:center}
+.actions .in{max-width:640px;width:100%;display:flex;gap:8px}
+.btn{flex:1;border:0;border-radius:12px;min-height:48px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 12px}
+.btn svg{width:19px;height:19px}
+.btn.pri{background:var(--brand2);color:#fff}
+.btn.sec{background:#e4eef1;color:var(--brand)}
+.btn.ok{background:var(--ok);color:#fff}
+.btn:disabled{opacity:.5}
+.btn.small{flex:0 0 auto;min-height:36px;font-size:13.5px;border-radius:10px}
+.op{display:flex;gap:6px;flex-wrap:wrap}
+.op button{border:1px solid #c5d3d7;background:#fff;border-radius:9px;padding:7px 9px;font-size:13px;font-weight:700;cursor:pointer;min-width:52px}
+.op button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 84px);transform:translateX(-50%) translateY(20px);opacity:0;transition:.2s;background:#13262d;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:20;max-width:90vw;text-align:center;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.bad{background:var(--bad)}
+.logitem{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+.logitem .top{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted)}
+.logitem .top b{color:var(--ink);font-size:14.5px}
+.logitem pre{white-space:pre-wrap;word-break:break-word;margin:8px 0 10px;font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#f7faf9;border-radius:8px;padding:9px;max-height:7.4em;overflow:hidden;position:relative;cursor:pointer}
+.logitem pre.open{max-height:none}
+.filters{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin:8px 0 12px;scrollbar-width:none}
+.filters button{flex:0 0 auto;border:1px solid #c5d3d7;background:#fff;border-radius:999px;padding:6px 11px;font-size:13px;cursor:pointer;white-space:nowrap}
+.filters button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.empty{text-align:center;color:var(--muted);padding:40px 10px}
+.modal{position:fixed;inset:0;background:rgba(10,25,30,.45);display:none;align-items:flex-end;justify-content:center;z-index:30}
+.modal.show{display:flex}
+.sheet{background:#fff;width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom) + 16px)}
+.sheet h3{margin:0 0 6px;font-size:17px}
+.sheet p{margin:0 0 16px;color:var(--muted);font-size:14.5px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <button class="iconbtn" id="backBtn" hidden aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+  <span class="badge" id="badge">GRP E</span>
+  <h1 id="title">RTO Report Generator</h1>
+  <button class="iconbtn" id="logBtn" aria-label="Message log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span>Log</span></button>
+</header>
+
+<main id="view"></main>
+
+<div class="actions" id="actions" hidden><div class="in">
+  <button class="btn sec" id="copyBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy</button>
+  <button class="btn sec" id="shareBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>Share</button>
+  <button class="btn pri" id="saveBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Save to log</button>
+</div></div>
+
+<div class="toast" id="toast"></div>
+<div class="modal" id="modal"><div class="sheet">
+  <h3 id="mTitle"></h3><p id="mText"></p>
+  <div class="row"><button class="btn sec" id="mNo">Cancel</button><button class="btn pri" id="mYes">OK</button></div>
+</div></div>
+
+<script>
+/* ---------- Report definitions (from the VBA user forms) ---------- */
+const OPERATORS=["JAMN","GLS","JPL","GGR","TJFC","KJPC","RBC","MALS","GPTA","JMLA","MJGP","VJGB","AYBL","GJAS","AATV"];
+const RUNS=["RTD","HAP","DAP","WAP"];
+const REG3=["Luzon Region","Visayas Region","Mindanao Region"];
+const REG6=[...REG3,"Luzon and Visayas Region","Luzon and Mindanao Region","Visayas and Mindanao Region"];
+const T=(label,o={})=>({label,type:o.long?"long":"text",date:!!o.date,...o});
+const S=(label,options)=>({label,type:"select",options});
+
+const REPORTS=[
+ {id:"contingency",btn:"Contingency List",short:"CL",title:"Contingency List Update",head:"Contingency List Update",fields:[
+   T("Effective"),S("Update",["Addition","Removal"]),S("Market Run",RUNS),T("Equipment Involved"),T("Outage Related"),T("Outage Date",{date:true}),T("Actual Online"),T("Other Remarks",{long:true})]},
+ {id:"load-curtailment",btn:"Load Curtailment",short:"LC",title:"Load Curtailment Notice",head:"Load Curtailment Notice",fields:[
+   S("Market Run",RUNS),S("Region",REG3),S("Event",["Load Curtailment","Intermittent Load Curtailment"]),T("Magnitude"),T("Date",{date:true}),T("Interval(s) Affected"),T("Findings",{long:true}),S("Market Impact",["Possible PEN/Market Re-run"]),T("Status")]},
+ {id:"hvdc",btn:"HVDC Limit",short:"HV",title:"HVDC Update",head:"HVDC Update",fields:[
+   S("Event",["Luzon-Visayas Limit Adjustment","Visayas-Mindanao Limit Adjustment"]),S("Parameter",["HVDC Forward Limit","HVDC Reverse Limit"]),T("Previous Limit"),T("New Limit"),T("Date",{date:true}),T("Effective"),T("Other Remarks",{long:true})]},
+ {id:"reserve",btn:"Reserve Requirement",short:"RR",title:"Reserve Requirement Notice",head:"Reserve Requirement Update",fields:[
+   S("Region",REG6),S("Parameter",["Delayed Contingency Raise","Fast Contingency Raise","Regulation Raise","Regulation Lower","(ALL) Delayed Contingency Raise, Fast Contingency Raise, Regulation Raise, Regulation Lower"]),S("Required Entry",["For today","For tomorrow"]),T("Date",{date:true}),T("Status"),T("Other Remarks",{long:true})]},
+ {id:"congestion",btn:"Congestion",short:"CG",title:"Congestion Report",head:"Congestion Notice",fields:[
+   S("Event",["Contingency Case","Base Case"]),T("Element"),S("Market Run",RUNS),T("Equipment Involved"),T("Date",{date:true}),T("Interval(s)"),T("Findings",{long:true}),T("Resolution",{long:true})]},
+ {id:"market-run",btn:"Market Run",short:"MR",title:"Market Run Notice",head:"Market Run Notice",fields:[
+   S("Market Run",RUNS),S("Event",["Market Run TIMEDOUT","Market Run FAILURE"]),T("Reason"),T("Date",{date:true}),T("Findings",{long:true}),T("Market Impact"),T("Resolution",{long:true}),T("Other Remarks",{long:true})]},
+ {id:"intervention",btn:"Market Intervention",short:"MI",title:"Market Intervention Notice",head:"Market Intervention Notice",fields:[
+   S("Event",["SO Initiated","MO Initiated","Lifting of Market Intervention"]),S("Region",REG6),T("Date",{date:true}),T("Intervals"),T("Cause",{long:true}),T("Market Impact"),T("Actions Taken",{long:true}),T("Other Remarks",{long:true})],
+   fmt:{"Event":v=>!v||/market intervention$/i.test(v)?v:v+" Market Intervention"}},
+ {id:"security",btn:"Security Limit",short:"SL",title:"Security Limit Notice",head:"Security Limit Notice",fields:[
+   T("Event"),S("Parameter",["Transmission Corridor Limit"]),T("Previous Limit"),T("New Limit"),T("Date",{date:true}),T("Effective"),T("Other Remarks",{long:true})]},
+ {id:"non-scheduling",btn:"Non-Scheduling",short:"NS",title:"Non-Scheduling Notice",head:"Non-Scheduling Notice",fields:[
+   S("Market Run",RUNS),S("Region",REG3),T("Resource Involved"),T("Date",{date:true}),T("Interval(s) Affected"),T("Findings",{long:true}),T("Resolution",{long:true}),T("Other Remarks",{long:true})]},
+ {id:"other",btn:"Other Concerns",short:"OC",title:"Other Concerns",head:"Other related concerns",fields:[
+   T("Trader/Affiliation"),T("Concern",{long:true}),T("Information",{long:true}),T("Date",{date:true}),T("Status"),T("Other Remarks",{long:true})]},
+];
+
+function buildMessage(r,vals){
+  const lines=r.fields.map(f=>{
+    let v=vals[f.label]||"";
+    if(r.fmt&&r.fmt[f.label]) v=r.fmt[f.label](v);
+    return f.label+": "+v;
+  });
+  return r.head+"\n\n"+lines.join("\n");
+}
+
+/* ---------- Small helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+          set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}};
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const p2=n=>String(n).padStart(2,"0");
+const todayShort=()=>{const d=new Date();return p2(d.getMonth()+1)+"/"+p2(d.getDate())+"/"+String(d.getFullYear()).slice(2)};
+let toastT;
+function toast(msg,bad){const t=$("#toast");t.textContent=msg;t.className="toast show"+(bad?" bad":"");clearTimeout(toastT);toastT=setTimeout(()=>t.className="toast",2200)}
+function ask(title,text,yes="OK"){return new Promise(res=>{$("#mTitle").textContent=title;$("#mText").textContent=text;$("#mYes").textContent=yes;
+  const m=$("#modal");m.classList.add("show");
+  const done=v=>{m.classList.remove("show");$("#mYes").onclick=$("#mNo").onclick=null;res(v)};
+  $("#mYes").onclick=()=>done(true);$("#mNo").onclick=()=>done(false);})}
+async function copyText(text){
+  if(window.AndroidApp){try{AndroidApp.copy(text);return true}catch(e){}}
+  try{await navigator.clipboard.writeText(text);return true}catch(e){}
+  try{const ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();
+    const ok=document.execCommand("copy");ta.remove();return ok}catch(e){return false}
+}
+
+/* ---------- Log storage: shared db when available, else this phone ---------- */
+const Store={mode:"local",entries:LS.get("rto_log",[]),listeners:[],db:null,
+  notify(){this.listeners.forEach(f=>f())},
+  async add(e){
+    if(this.db){await this.db.collection("log").add(e);return}
+    this.entries.unshift({...e,id:"l"+e.ts});LS.set("rto_log",this.entries);this.notify();
+  },
+  async remove(id){
+    if(this.db){await this.db.collection("log").doc(id).delete();return}
+    this.entries=this.entries.filter(x=>x.id!==id);LS.set("rto_log",this.entries);this.notify();
+  }
+};
+(async()=>{
+  if(!window.claude||!window.claude.use) return;
+  let db=null;try{db=await window.claude.use("db")}catch(e){}
+  if(!db) return;
+  Store.db=db;Store.mode="shared";Store.loading=true;Store.notify();
+  const timer=setTimeout(()=>{Store.stale=true;Store.notify()},10000);
+  db.collection("log").orderBy("ts","desc").limit(1000).onSnapshot(snap=>{
+    if(!snap.metadata.fromCache){clearTimeout(timer);Store.stale=false}
+    Store.loading=false;
+    Store.entries=snap.docs.map(d=>({id:d.id,...d.data()}));Store.notify();
+  },err=>{clearTimeout(timer);Store.loading=false;Store.err=err&&err.code;Store.notify()});
+})();
+let Downloads=null;
+(async()=>{if(window.claude&&window.claude.use){try{Downloads=await window.claude.use("downloads")}catch(e){}}if(location.hash==="#log")render()})();
+
+/* ---------- Views ---------- */
+let current=null, vals={}, dirty=false, lastSaved=null;
+function statusLine(){
+  if(Store.mode==="shared") return `<div class="status"><span class="dot on"></span>${Store.stale?"Shared log — can't reach it right now, may be out of date":Store.err?"Shared log unavailable ("+esc(Store.err)+")":"Shared log — everyone's saved messages appear here"}</div>`;
+  return `<div class="status"><span class="dot"></span>Log kept on this phone only</div>`;
+}
+function renderHome(){
+  current=null;$("#title").textContent="RTO Report Generator";$("#backBtn").hidden=true;$("#badge").hidden=false;$("#actions").hidden=true;
+  $("#view").innerHTML=statusLine()+`<div class="grid">${REPORTS.map(r=>`<button class="tile" data-go="${r.id}"><span class="ic">${r.short}</span><b>${esc(r.btn)}</b></button>`).join("")}</div>
+  <div class="section">Created by</div>${opPicker()}<p class="hint" style="margin-top:10px">Your operator code is remembered on this phone.</p>`;
+  bindOps();
+  document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{location.hash=b.dataset.go});
+}
+function opPicker(){const cur=LS.get("rto_op","");return `<div class="op" id="ops">${OPERATORS.map(o=>`<button data-op="${o}" class="${o===cur?"on":""}">${o}</button>`).join("")}</div>`}
+function bindOps(){document.querySelectorAll("[data-op]").forEach(b=>b.onclick=()=>{
+  const was=b.classList.contains("on");document.querySelectorAll("[data-op]").forEach(x=>x.classList.remove("on"));
+  if(!was){b.classList.add("on");LS.set("rto_op",b.dataset.op)}else LS.set("rto_op","");opMem=was?"":b.dataset.op;})}
+let opMem=LS.get("rto_op","");
+const getOp=()=>{const on=document.querySelector("[data-op].on");return on?on.dataset.op:""};
+
+function fieldHTML(f,i){
+  const id="f"+i, v=vals[f.label]||"";
+  if(f.type==="select"){
+    const isOther=v&&!f.options.includes(v);
+    return `<label class="f"><span>${esc(f.label)}</span>
+      <select class="t" id="${id}" data-label="${esc(f.label)}"><option value="">Select…</option>${f.options.map(o=>`<option ${o===v?"selected":""}>${esc(o)}</option>`).join("")}<option value="__other" ${isOther?"selected":""}>Type other…</option></select>
+      <input class="t other" id="${id}o" data-label="${esc(f.label)}" placeholder="Type ${esc(f.label.toLowerCase())}" value="${isOther?esc(v):""}" ${isOther?"":"hidden"}></label>`;
+  }
+  const chip=f.date?`<button type="button" class="chip" data-today="${id}">Today</button>`:"";
+  return f.type==="long"
+    ? `<label class="f"><span>${esc(f.label)}</span><textarea class="t" id="${id}" data-label="${esc(f.label)}" rows="2">${esc(v)}</textarea></label>`
+    : `<label class="f"><span>${esc(f.label)}${chip}</span><input class="t" id="${id}" data-label="${esc(f.label)}" value="${esc(v)}" ${f.date?'placeholder="MM/DD/YY"':""} autocomplete="off"></label>`;
+}
+function renderReport(r){
+  if(current!==r){current=r;vals=LS.get("rto_draft_"+r.id,{});dirty=false;lastSaved=null}
+  $("#title").textContent=r.title;$("#backBtn").hidden=false;$("#badge").hidden=true;$("#actions").hidden=false;
+  $("#shareBtn").hidden=!(window.AndroidApp||navigator.share);
+  $("#view").innerHTML=`<div class="card">${r.fields.map(fieldHTML).join("")}</div>
+   <div class="section" style="display:flex;justify-content:space-between;align-items:center">Message (copy & paste to Viber)
+     <button class="btn sec small" id="clearBtn">New report</button></div>
+   <textarea class="t msgbox" id="msg" spellcheck="false"></textarea>
+   <p class="hint" id="msgHint"></p>
+   <div class="section">Created by</div>${opPicker()}`;
+  bindOps();
+  const msg=$("#msg");
+  const refresh=()=>{if(!dirty) msg.value=buildMessage(r,vals);
+    $("#msgHint").innerHTML=dirty?`<span class="warn">You edited the message by hand, so field changes won't update it.</span> <button class="chip" id="rebuild">Rebuild from fields</button>`:"The message updates as you fill in the fields. You can also edit it directly.";
+    const rb=$("#rebuild");if(rb) rb.onclick=()=>{dirty=false;refresh()};
+    const sb=$("#saveBtn");const same=lastSaved!==null&&lastSaved===msg.value;
+    sb.disabled=same;sb.innerHTML=same?"Saved ✓":saveLabel;};
+  const store=()=>LS.set("rto_draft_"+r.id,vals);
+  document.querySelectorAll("#view [data-label]").forEach(el=>{
+    const ev=el.tagName==="SELECT"?"change":"input";
+    el.addEventListener(ev,()=>{
+      const lbl=el.dataset.label;
+      if(el.tagName==="SELECT"){const o=document.getElementById(el.id+"o");
+        if(el.value==="__other"){o.hidden=false;o.focus();vals[lbl]=o.value}else{o.hidden=true;vals[lbl]=el.value}}
+      else vals[lbl]=el.value;
+      store();refresh();
+    });
+  });
+  document.querySelectorAll("[data-today]").forEach(b=>b.onclick=e=>{e.preventDefault();const el=document.getElementById(b.dataset.today);el.value=todayShort();el.dispatchEvent(new Event("input"))});
+  msg.addEventListener("input",()=>{dirty=msg.value!==buildMessage(r,vals);refresh()});
+  $("#clearBtn").onclick=async()=>{if(await ask("Start a new report?","This clears all the fields on this form.","Clear")){vals={};dirty=false;lastSaved=null;store();renderReport(r)}};
+  refresh();
+}
+const saveLabel=$("#saveBtn").innerHTML;
+
+let logFilter="All", logQuery="";
+function renderLog(){
+  current=null;$("#title").textContent="Message Log";$("#backBtn").hidden=false;$("#logBtn").hidden=true;$("#badge").hidden=true;$("#actions").hidden=true;
+  const names=["All",...REPORTS.map(r=>r.title)];
+  const q=logQuery.toLowerCase();
+  const list=Store.entries.filter(e=>(logFilter==="All"||e.report===logFilter)&&(!q||(e.message+" "+e.operator+" "+e.date).toLowerCase().includes(q)));
+  $("#view").innerHTML=statusLine()+`
+   <div class="row"><input class="t" id="q" placeholder="Search messages, operator, date" value="${esc(logQuery)}" style="flex:1">
+   ${(Downloads||window.AndroidApp)?`<button class="btn pri small" id="exp">Export Excel</button>`:""}</div>
+   <div class="filters">${names.map(n=>`<button data-f="${esc(n)}" class="${n===logFilter?"on":""}">${esc(n==="All"?"All":n.replace(/ (Notice|Update|Report)$/,""))}</button>`).join("")}</div>
+   ${Store.loading&&!Store.entries.length?`<div class="empty">Loading log…</div>`:list.length?list.map(e=>`
+    <div class="logitem"><div class="top"><b>${esc(e.report)}</b><span>${esc(e.operator)}</span></div>
+     <div class="top"><span>${esc(e.date)} · ${esc(e.time)}</span></div>
+     <pre data-x>${esc(e.message)}</pre>
+     <div class="row"><button class="btn sec small" data-copy="${esc(e.id)}">Copy</button><button class="btn sec small" data-del="${esc(e.id)}" style="color:var(--bad)">Delete</button></div></div>`).join("")
+   :`<div class="empty">${Store.entries.length?"No messages match.":"No saved messages yet. Saved reports show up here."}</div>`}`;
+  const qi=$("#q");qi.oninput=()=>{logQuery=qi.value;const pos=qi.selectionStart;renderLog();const n=$("#q");n.focus();n.setSelectionRange(pos,pos)};
+  document.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{logFilter=b.dataset.f;renderLog()});
+  document.querySelectorAll("[data-x]").forEach(p=>p.onclick=()=>p.classList.toggle("open"));
+  document.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{const e=Store.entries.find(x=>x.id===b.dataset.copy);toast(await copyText(e.message)?"Message copied":"Couldn't copy — long-press the text instead",false)});
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{
+    const e=Store.entries.find(x=>x.id===b.dataset.del);
+    if(!await ask("Delete this message?",`${e.report} by ${e.operator}, ${e.date} ${e.time}. This can't be undone.`,"Delete"))return;
+    try{await Store.remove(e.id);toast("Deleted")}catch(err){toast("Couldn't delete: "+(err&&err.code||"error"),true)}});
+  const ex=$("#exp");if(ex) ex.onclick=()=>exportXlsx(list);
+}
+
+function render(){
+  $("#logBtn").hidden=false;
+  const h=location.hash.slice(1);
+  if(h==="log") return renderLog();
+  const r=REPORTS.find(x=>x.id===h);
+  if(r) return renderReport(r);
+  renderHome();
+}
+Store.listeners.push(()=>{if(location.hash==="#log")render();else if(!current)renderHome()});
+window.addEventListener("hashchange",()=>{window.scrollTo(0,0);render()});
+$("#backBtn").onclick=()=>{location.hash=""};
+$("#logBtn").onclick=()=>{location.hash="log"};
+
+$("#copyBtn").onclick=async()=>{const m=$("#msg").value;if(!m.trim())return toast("There is no message to copy.",true);
+  toast(await copyText(m)?"Copied — paste it in Viber":"Couldn't copy — long-press the message instead",!1)};
+$("#shareBtn").onclick=async()=>{const m=$("#msg").value;if(!m.trim())return toast("There is no message to share.",true);if(window.AndroidApp){AndroidApp.share(m);return}try{await navigator.share({text:$("#msg").value})}catch(e){if(e&&e.name!=="AbortError"){$("#shareBtn").hidden=true;toast("Sharing isn't available here — use Copy",true)}}};
+$("#saveBtn").onclick=async()=>{
+  const m=$("#msg").value, op=getOp();
+  if(!m.trim()) return toast("There is no message to save.",true);
+  if(!op){toast("Please select an operator.",true);$("#ops").scrollIntoView({behavior:"smooth",block:"center"});return}
+  const d=new Date();
+  const e={date:p2(d.getDate())+"-"+MON[d.getMonth()]+"-"+d.getFullYear(),time:p2(d.getHours())+":"+p2(d.getMinutes())+":"+p2(d.getSeconds()),
+    report:current.title,message:m,operator:op,ts:d.getTime()};
+  const btn=$("#saveBtn");btn.disabled=true;
+  try{await Store.add(e);lastSaved=m;btn.innerHTML="Saved ✓";toast("Message saved to log")}
+  catch(err){btn.disabled=false;toast(err&&err.code==="quota_exceeded"?"The shared log is full — export it and delete old messages":"Couldn't save: "+(err&&err.code||"error"),true)}
+};
+
+/* ---------- Excel export (.xlsx, like ExportMessageLog) ---------- */
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0}
+function zip(files){
+  const enc=new TextEncoder(),parts=[],cen=[];let off=0;
+  for(const [name,str] of files){
+    const nb=enc.encode(name),data=enc.encode(str),crc=crc32(data);
+    const h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);
+    h.setUint16(10,0,true);h.setUint16(12,0x21,true);h.setUint32(14,crc,true);h.setUint32(18,data.length,true);h.setUint32(22,data.length,true);
+    h.setUint16(26,nb.length,true);h.setUint16(28,0,true);
+    parts.push(new Uint8Array(h.buffer),nb,data);
+    const c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(10,0,true);
+    c.setUint16(12,0,true);c.setUint16(14,0x21,true);c.setUint32(16,crc,true);c.setUint32(20,data.length,true);c.setUint32(24,data.length,true);
+    c.setUint16(28,nb.length,true);c.setUint32(42,off,true);
+    cen.push(new Uint8Array(c.buffer),nb);
+    off+=30+nb.length+data.length;
+  }
+  const csize=cen.reduce((a,b)=>a+b.length,0);
+  const e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,csize,true);e.setUint32(16,off,true);
+  return new Blob([...parts,...cen,new Uint8Array(e.buffer)]);
+}
+const x=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"");
+function buildXlsx(entries){
+  const rows=[...entries].sort((a,b)=>a.ts-b.ts);
+  const istr=(ref,s,st)=>`<c r="${ref}" t="inlineStr" s="${st}"><is><t xml:space="preserve">${x(s)}</t></is></c>`;
+  let sd=`<row r="1">${["Date","Time","Report","Message","Operator"].map((h,i)=>istr("ABCDE"[i]+"1",h,1)).join("")}</row>`;
+  rows.forEach((e,i)=>{const r=i+2,d=new Date(e.ts);
+    const serial=Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/86400000+25569;
+    const frac=(d.getHours()*3600+d.getMinutes()*60+d.getSeconds())/86400;
+    sd+=`<row r="${r}"><c r="A${r}" s="2"><v>${serial}</v></c><c r="B${r}" s="3"><v>${frac}</v></c>${istr("C"+r,e.report,4)}${istr("D"+r,e.message,4)}${istr("E"+r,e.operator,4)}</row>`});
+  const sheet=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="13" customWidth="1"/><col min="2" max="2" width="10" customWidth="1"/><col min="3" max="3" width="28" customWidth="1"/><col min="4" max="4" width="62" customWidth="1"/><col min="5" max="5" width="10" customWidth="1"/></cols><sheetData>${sd}</sheetData></worksheet>`;
+  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="2"><numFmt numFmtId="164" formatCode="dd\\-mmm\\-yyyy"/><numFmt numFmtId="165" formatCode="hh:mm:ss"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment vertical="top"/></xf><xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment vertical="top"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  return zip([
+   ["[Content_Types].xml",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`],
+   ["_rels/.rels",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+   ["xl/workbook.xml",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Message_Log" sheetId="1" r:id="rId1"/></sheets></workbook>`],
+   ["xl/_rels/workbook.xml.rels",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
+   ["xl/styles.xml",styles],
+   ["xl/worksheets/sheet1.xml",sheet]]);
+}
+async function exportXlsx(list){
+  if(!list.length) return toast("Nothing to export.",true);
+  const d=new Date();
+  const name=`Message_Log_${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}.xlsx`;
+  if(window.AndroidApp){const blob=buildXlsx(list);const r=new FileReader();
+    r.onload=()=>{try{const res=AndroidApp.saveFile(name,String(r.result).split(",")[1],"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");toast(res||"Message Log exported")}catch(e){toast("Couldn't export",true)}};
+    r.readAsDataURL(blob);return}
+  try{await Downloads.save({filename:name,data:buildXlsx(list)});toast("Message Log exported")}
+  catch(e){if(e&&e.code!=="declined")toast("Couldn't export: "+(e&&e.code||"error"),true)}
+}
+window.__test={REPORTS,buildMessage,buildXlsx};
+render();
+</script>
+</body>
+</html>
